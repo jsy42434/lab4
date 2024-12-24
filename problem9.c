@@ -1,76 +1,86 @@
 #include <gtk/gtk.h>
+#include <stdlib.h>
 
-GtkWidget *entry; // 입력 텍스트 상자
+// 입력 필드와 결과 레이블
+GtkWidget *entry1, *entry2, *result_label;
 
-// 버튼 클릭 시 호출되는 콜백 함수
-void on_button_clicked(GtkWidget *widget, gpointer data) {
-    const char *button_label = gtk_button_get_label(GTK_BUTTON(widget));
-    const char *current_text = gtk_entry_get_text(GTK_ENTRY(entry));
-    char new_text[256];
+// 연산 함수
+void on_calculate(GtkWidget *widget, gpointer data) {
+    const char *op = (const char *)data;
+    const char *text1 = gtk_entry_get_text(GTK_ENTRY(entry1));
+    const char *text2 = gtk_entry_get_text(GTK_ENTRY(entry2));
 
-    if (strcmp(button_label, "=") == 0) {
-        // 수식을 계산
-        double result = 0.0;
-        if (sscanf(current_text, "%lf", &result) == 1) {
-            snprintf(new_text, sizeof(new_text), "%.2lf", result);
+    double num1 = atof(text1);
+    double num2 = atof(text2);
+    double result = 0.0;
+    char result_text[100];
+
+    if (g_strcmp0(op, "+") == 0) {
+        result = num1 + num2;
+    } else if (g_strcmp0(op, "-") == 0) {
+        result = num1 - num2;
+    } else if (g_strcmp0(op, "*") == 0) {
+        result = num1 * num2;
+    } else if (g_strcmp0(op, "/") == 0) {
+        if (num2 != 0) {
+            result = num1 / num2;
         } else {
-            snprintf(new_text, sizeof(new_text), "Error");
+            gtk_label_set_text(GTK_LABEL(result_label), "Error: Division by zero");
+            return;
         }
-        gtk_entry_set_text(GTK_ENTRY(entry), new_text);
-    } else if (strcmp(button_label, "C") == 0) {
-        // 입력 초기화
-        gtk_entry_set_text(GTK_ENTRY(entry), "");
-    } else {
-        // 숫자 또는 연산자 추가
-        snprintf(new_text, sizeof(new_text), "%s%s", current_text, button_label);
-        gtk_entry_set_text(GTK_ENTRY(entry), new_text);
     }
+
+    snprintf(result_text, sizeof(result_text), "Result: %.2f", result);
+    gtk_label_set_text(GTK_LABEL(result_label), result_text);
 }
 
 int main(int argc, char *argv[]) {
     GtkWidget *window;
     GtkWidget *grid;
-    GtkWidget *buttons[16];
-    const char *labels[] = {
-        "7", "8", "9", "/",
-        "4", "5", "6", "*",
-        "1", "2", "3", "-",
-        "C", "0", "=", "+"
-    };
+    GtkWidget *add_button, *sub_button, *mul_button, *div_button;
 
     gtk_init(&argc, &argv);
 
     // 윈도우 생성
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(window), "GTK 계산기");
-    gtk_window_set_default_size(GTK_WINDOW(window), 200, 300);
-    gtk_container_set_border_width(GTK_CONTAINER(window), 10);
-
-    // 종료 버튼 동작
+    gtk_window_set_title(GTK_WINDOW(window), "Calculator");
+    gtk_window_set_default_size(GTK_WINDOW(window), 300, 200);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
     // 그리드 레이아웃 생성
     grid = gtk_grid_new();
     gtk_container_add(GTK_CONTAINER(window), grid);
 
-    // 입력 텍스트 상자 생성
-    entry = gtk_entry_new();
-    gtk_entry_set_alignment(GTK_ENTRY(entry), 1.0); // 오른쪽 정렬
-    gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE); // 사용자가 직접 입력 불가
-    gtk_grid_attach(GTK_GRID(grid), entry, 0, 0, 4, 1);
+    // 입력 필드
+    entry1 = gtk_entry_new();
+    gtk_grid_attach(GTK_GRID(grid), entry1, 0, 0, 2, 1);
+    entry2 = gtk_entry_new();
+    gtk_grid_attach(GTK_GRID(grid), entry2, 0, 1, 2, 1);
 
-    // 버튼 생성 및 추가
-    for (int i = 0; i < 16; i++) {
-        buttons[i] = gtk_button_new_with_label(labels[i]);
-        g_signal_connect(buttons[i], "clicked", G_CALLBACK(on_button_clicked), NULL);
-        gtk_grid_attach(GTK_GRID(grid), buttons[i], i % 4, (i / 4) + 1, 1, 1);
-    }
+    // 버튼 생성
+    add_button = gtk_button_new_with_label("+");
+    gtk_grid_attach(GTK_GRID(grid), add_button, 0, 2, 1, 1);
+    g_signal_connect(add_button, "clicked", G_CALLBACK(on_calculate), (gpointer)"+");
+
+    sub_button = gtk_button_new_with_label("-");
+    gtk_grid_attach(GTK_GRID(grid), sub_button, 1, 2, 1, 1);
+    g_signal_connect(sub_button, "clicked", G_CALLBACK(on_calculate), (gpointer)"-");
+
+    mul_button = gtk_button_new_with_label("*");
+    gtk_grid_attach(GTK_GRID(grid), mul_button, 0, 3, 1, 1);
+    g_signal_connect(mul_button, "clicked", G_CALLBACK(on_calculate), (gpointer)"*");
+
+    div_button = gtk_button_new_with_label("/");
+    gtk_grid_attach(GTK_GRID(grid), div_button, 1, 3, 1, 1);
+    g_signal_connect(div_button, "clicked", G_CALLBACK(on_calculate), (gpointer)"/");
+
+    // 결과 레이블
+    result_label = gtk_label_new("Result: ");
+    gtk_grid_attach(GTK_GRID(grid), result_label, 0, 4, 2, 1);
 
     // 윈도우 표시
     gtk_widget_show_all(window);
 
-    // GTK 메인 루프 실행
     gtk_main();
-
     return 0;
 }
